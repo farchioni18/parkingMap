@@ -8,7 +8,7 @@
 
 'use strict';
 
-const CACHE_TTL_MS = 30 * 60 * 1000; // 1,800,000 ms
+const CACHE_TTL_MS = 0; // DEBUG: 暫時關閉 cache
 
 const VALID_CITIES = new Set(['Kaohsiung', 'Tainan', 'Chiayi']);
 
@@ -166,21 +166,31 @@ module.exports = async function handler(req, res) {
   try {
     const accessToken = await getTdxToken(clientId, clientSecret);
     const tdxRaw      = await fetchTdxAvailability(city, accessToken);
+
+    // DEBUG: 印出第一筆原始資料看欄位名稱
+    const firstItem = Array.isArray(tdxRaw) ? tdxRaw[0] : (typeof tdxRaw === 'object' ? tdxRaw : null);
+
     // TDX 回應可能是陣列，或包在物件的某個欄位裡
     const tdxArray = Array.isArray(tdxRaw)
       ? tdxRaw
       : (tdxRaw.ParkingAvailabilities || tdxRaw.data || tdxRaw.Data || []);
     const data        = transformAvailability(tdxArray);
     const now         = Date.now();
-
-    // 更新 cache
     cache[city].data     = data;
     cache[city].cachedAt = now;
 
     return res.status(200).json({
       data:     data,
       cachedAt: new Date(now).toISOString(),
-      city:     city
+      city:     city,
+      _debug: {
+        isArray: Array.isArray(tdxRaw),
+        topLevelKeys: typeof tdxRaw === 'object' && tdxRaw !== null && !Array.isArray(tdxRaw)
+          ? Object.keys(tdxRaw).slice(0, 10)
+          : null,
+        firstItemKeys: firstItem ? Object.keys(firstItem).slice(0, 10) : null,
+        arrayLength: tdxArray.length
+      }
     });
   } catch (err) {
     return res.status(502).json({
