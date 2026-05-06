@@ -391,7 +391,7 @@ body {
 <!-- ── Navbar ── -->
 <nav id="navbar">
   <div class="nav-left">
-    <img src="logo.png" alt="logo" style="height:30px;width:auto;object-fit:contain;margin-right:6px;flex-shrink:0;">
+    <img id="navLogo" src="logo-day.png" alt="logo" style="height:30px;width:auto;object-fit:contain;margin-right:6px;flex-shrink:0;">
     <div class="logo">ParkNow<span class="logo-tw">.TW</span></div>
   </div>
   <div class="nav-center">
@@ -787,6 +787,7 @@ function toggleTheme() {
   var isDark = document.documentElement.dataset.theme === 'dark';
   document.documentElement.dataset.theme = isDark ? '' : 'dark';
   document.getElementById('themeToggle').textContent = isDark ? '🌙' : '☀️';
+  document.getElementById('navLogo').src = isDark ? 'logo-day.png' : 'logo-night.png';
 }
 
 /* ── 地址搜尋 ── */
