@@ -8,7 +8,7 @@
 
 'use strict';
 
-const CACHE_TTL_MS = 0; // DEBUG: 暫時關閉 cache
+const CACHE_TTL_MS = 30 * 60 * 1000; // 1,800,000 ms
 
 const VALID_CITIES = new Set(['Kaohsiung', 'Tainan', 'Chiayi']);
 
@@ -40,20 +40,40 @@ function isCacheValid(entry) {
 }
 
 /**
- * 將 TDX API 回傳的停車場空位陣列轉換為以 ParkingLotID 為 key 的物件。
- * null / undefined 欄位統一轉為 -1。
+ * 將 TDX API 回傳的停車場空位陣列轉換為以 CarParkID 為 key 的物件。
+ * TDX 實際欄位：CarParkID, AvailableSpaces, Availabilities[{SpaceType, AvailableSpaces}]
+ * SpaceType: 1=小型車, 2=大型車, 3=機車
  *
- * @param {Array<{ParkingLotID: string, SmallCarVacancy: number|null, LargeCarVacancy: number|null, MotorcycleVacancy: number|null}>} tdxArray
+ * @param {Array} tdxArray
  * @returns {{ [id: string]: { smallCar: number, largeCar: number, motorcycle: number } }}
  */
 function transformAvailability(tdxArray) {
   const result = {};
   for (const item of tdxArray) {
-    result[item.ParkingLotID] = {
-      smallCar:   item.SmallCarVacancy   != null ? item.SmallCarVacancy   : -1,
-      largeCar:   item.LargeCarVacancy   != null ? item.LargeCarVacancy   : -1,
-      motorcycle: item.MotorcycleVacancy != null ? item.MotorcycleVacancy : -1
-    };
+    const id = item.CarParkID || item.ParkingLotID;
+    if (!id) continue;
+
+    let smallCar   = -1;
+    let largeCar   = -1;
+    let motorcycle = -1;
+
+    if (Array.isArray(item.Availabilities) && item.Availabilities.length > 0) {
+      for (const avail of item.Availabilities) {
+        const spaces = avail.AvailableSpaces != null ? avail.AvailableSpaces : -1;
+        if (avail.SpaceType === 1) smallCar   = spaces; // 小型車
+        if (avail.SpaceType === 2) largeCar   = spaces; // 大型車
+        if (avail.SpaceType === 3) motorcycle = spaces; // 機車
+      }
+      // 若沒有分類，用總空位數
+      if (smallCar === -1 && item.AvailableSpaces != null) {
+        smallCar = item.AvailableSpaces;
+      }
+    } else {
+      // 沒有 Availabilities，直接用 AvailableSpaces
+      smallCar = item.AvailableSpaces != null ? item.AvailableSpaces : -1;
+    }
+
+    result[id] = { smallCar, largeCar, motorcycle };
   }
   return result;
 }
@@ -172,9 +192,6 @@ module.exports = async function handler(req, res) {
       ? tdxRaw
       : (tdxRaw.ParkingAvailabilities || tdxRaw.data || tdxRaw.Data || []);
 
-    // DEBUG: 印出第一筆看 ID 欄位名稱
-    const firstItem = tdxArray[0] || null;
-
     const data        = transformAvailability(tdxArray);
     const now         = Date.now();
     cache[city].data     = data;
@@ -183,12 +200,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       data:     data,
       cachedAt: new Date(now).toISOString(),
-      city:     city,
-      _debug: {
-        arrayLength: tdxArray.length,
-        firstItemKeys: firstItem ? Object.keys(firstItem) : null,
-        firstItem: firstItem
-      }
+      city:     city
     });
   } catch (err) {
     return res.status(502).json({
