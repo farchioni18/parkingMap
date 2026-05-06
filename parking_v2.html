@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>ParkNow.TW — 停車場查詢（桌機版）</title>
+<link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -73,10 +74,10 @@ body {
   gap: 20px;
   flex-shrink: 0;
 }
-.nav-left { display: flex; align-items: center; flex-shrink: 0; }
-.logo { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+.nav-left { display: flex; align-items: center; flex-shrink: 0; margin-right: 16px; }
+.logo { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; letter-spacing: -0.3px; }
 .logo-tw { color: var(--text-secondary); font-weight: 400; }
-.nav-center { flex: 1; display: flex; align-items: center; position: relative; max-width: 480px; }
+.nav-center { flex: 1; display: flex; align-items: center; position: relative; max-width: 480px; min-width: 0; }
 .search-wrap { display: flex; align-items: center; width: 100%; gap: 4px; position: relative; }
 #addressSearch {
   flex: 1;
@@ -369,12 +370,32 @@ body {
   white-space: nowrap;
 }
 #geoMsg.show { display: block; }
+
+/* ── Availability status bar ── */
+#availBar {
+  display: none;
+  position: fixed;
+  bottom: calc(var(--cardstrip-h) + 10px);
+  right: 12px;
+  background: rgba(255,255,255,.95);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: .72rem;
+  color: var(--text-secondary);
+  z-index: 500;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+#availBar.show { display: block; }
+[data-theme="dark"] #availBar { background: rgba(26,35,50,.97); border-color: var(--border-color); }
 </style>
 </head>
 <body>
 <!-- ── Navbar ── -->
 <nav id="navbar">
   <div class="nav-left">
+    <img src="logo.png" alt="logo" style="height:30px;width:auto;object-fit:contain;margin-right:8px;flex-shrink:0;">
     <div class="logo">ParkNow<span class="logo-tw">.TW</span></div>
   </div>
   <div class="nav-center">
@@ -462,6 +483,9 @@ body {
 
 <!-- ── Geo Message ── -->
 <div id="geoMsg"></div>
+
+<!-- ── Availability Status Bar ── -->
+<div id="availBar"></div>
 
 <!-- ── Scripts ── -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -599,31 +623,46 @@ function parseData(arr) {
   arr.forEach(function(p) {
     var cw = (p.chargeway || '').replace(/,/g, '');
 
+    // 將各種「每小時N元」格式統一換算成每半小時費率
+    // 支援格式：每半小時N元 / N元/時 / N元/H / N元/hr / N元/1hr / N小時N元 / 半小時N元
+    function parseHalfHour(text) {
+      var m;
+      // 每半小時N元 / 半小時N元 / N元/0.5hr / N元/0.5H
+      m = text.match(/每半小時(\d+)元/) || text.match(/半小時(\d+)元/) ||
+          text.match(/(\d+)元\/0\.5\s*[hH][rR]?/) || text.match(/(\d+)元\/0\.5\s*[hH]/);
+      if (m) return parseInt(m[1], 10);
+      // N元/時 / N元/H / N元/hr / N元/1hr（每小時，換算成半小時）
+      m = text.match(/(\d+)元\/[時时]/) || text.match(/(\d+)元\/[Hh][Rr]?/) ||
+          text.match(/(\d+)元\/1\s*[hH][rR]?/) || text.match(/(\d+)\/[Hh]\b/) ||
+          text.match(/計時(\d+)元\/時/) || text.match(/閮[^(\d]*(\d+)元\/時/);
+      if (m) return Math.round(parseInt(m[1], 10) / 2);
+      // N小時N元 / 1小時N元（每小時，換算成半小時）
+      m = text.match(/[1一]小時(\d+)元/) || text.match(/小時(\d+)元/);
+      if (m) return Math.round(parseInt(m[1], 10) / 2);
+      return null;
+    }
+
     // _hh: 每半小時費率，依平日/假日選擇對應費率
     if (holiday) {
-      // 假日：優先抓「假日：每半小時N元」或「假日每半小時N元」
-      var mHoliday = cw.match(/假日[^。；]*每半小時(\d+)元/) ||
-                     cw.match(/假日[：:]\s*每半小時(\d+)元/) ||
-                     cw.match(/\(2\)[^。；]*每半小時(\d+)元/);
-      if (mHoliday) {
-        p._hh = parseInt(mHoliday[1], 10);
-      } else {
-        // 沒有明確假日費率，fallback 到通用費率
-        var mHH = cw.match(/每半小時(\d+)元/);
-        p._hh = mHH ? parseInt(mHH[1], 10) : null;
+      // 假日：優先抓假日費率段落
+      var holidayPart = cw.match(/假日[^平]*/) ? cw.match(/假日[^平]*/)[0] : null;
+      var mHoliday = holidayPart ? parseHalfHour(holidayPart) : null;
+      // fallback: (2) 段落
+      if (!mHoliday) {
+        var part2 = cw.match(/\(2\)[^(]*/);
+        mHoliday = part2 ? parseHalfHour(part2[0]) : null;
       }
+      p._hh = mHoliday !== null ? mHoliday : parseHalfHour(cw);
     } else {
-      // 平日：優先抓「平日：每半小時N元」或「平日每半小時N元」
-      var mWeekday = cw.match(/平日[^。；]*每半小時(\d+)元/) ||
-                     cw.match(/平日[：:]\s*每半小時(\d+)元/) ||
-                     cw.match(/\(1\)[^。；]*每半小時(\d+)元/);
-      if (mWeekday) {
-        p._hh = parseInt(mWeekday[1], 10);
-      } else {
-        // 沒有明確平日費率，fallback 到通用費率
-        var mHH2 = cw.match(/每半小時(\d+)元/);
-        p._hh = mHH2 ? parseInt(mHH2[1], 10) : null;
+      // 平日：優先抓平日費率段落
+      var weekdayPart = cw.match(/平日[^假]*/) ? cw.match(/平日[^假]*/)[0] : null;
+      var mWeekday = weekdayPart ? parseHalfHour(weekdayPart) : null;
+      // fallback: (1) 段落
+      if (!mWeekday) {
+        var part1 = cw.match(/\(1\)[^(]*/);
+        mWeekday = part1 ? parseHalfHour(part1[0]) : null;
       }
+      p._hh = mWeekday !== null ? mWeekday : parseHalfHour(cw);
     }
 
     // _mo: 月租費用
@@ -812,7 +851,7 @@ function renderCards(fd) {
     var p = fd[i];
     var vacNum = parseInt(p.smallcarVacancy, 10);
     var vacClass = vacNum > 0 ? 'vac-ok' : (vacNum === -2 ? 'vac-na' : 'vac-warn');
-    var vacText = vacNum > 0 ? vacNum + '位' : (vacNum === -2 ? '未提供' : (vacNum === -1 ? '不適用' : '滿'));
+    var vacText = vacNum > 0 ? vacNum + '位' : (vacNum === -2 ? '剩餘車位未提供' : (vacNum === -1 ? '不適用' : '滿'));
     var distStr = p._dist !== undefined ? fmtDist(p._dist) : '';
     var rateStr = '';
     if (p._hh) rateStr += '⏱' + p._hh + '元/半hr ';
@@ -863,7 +902,7 @@ function renderListPanel(fd) {
   for (var i = 0; i < shown; i++) {
     var p = fd[i];
     var vacNum = parseInt(p.smallcarVacancy, 10);
-    var vacText = vacNum > 0 ? vacNum + '位空位' : (vacNum === -2 ? '未提供' : (vacNum === -1 ? '不適用' : '已滿'));
+    var vacText = vacNum > 0 ? vacNum + '位空位' : (vacNum === -2 ? '剩餘車位未提供' : (vacNum === -1 ? '不適用' : '已滿'));
     var distStr = p._dist !== undefined ? fmtDist(p._dist) : '';
     var rateText = p.chargeway ? hlM(esc(p.chargeway)) : '費率未提供';
     html += '<div class="list-card">' +
@@ -1049,10 +1088,12 @@ function switchCity(cityKey) {
   currentCity = cityKey;
   if (CITY_CACHE[cityKey]) {
     D = CITY_CACHE[cityKey];
+    parseData(D);
     resetFilters();
     rebuildDistrictSelect();
     render();
     if (map) map.setView(cfg.center, cfg.zoom);
+    fetchAvailability(CITY_TO_TDX_CODE[cityKey]);
   } else {
     loadScript(cfg.file, function() {
       D = window[cfg.varName];
@@ -1066,10 +1107,78 @@ function switchCity(cityKey) {
       rebuildDistrictSelect();
       render();
       if (map) map.setView(cfg.center, cfg.zoom);
+      fetchAvailability(CITY_TO_TDX_CODE[cityKey]);
     }, function() {
       showListError('資料載入失敗');
     });
   }
+}
+
+/* ── Availability Proxy 整合 ── */
+var PROXY_BASE_URL = 'https://parking-proxy.vercel.app'; // 部署後替換為實際 URL
+var CITY_TO_TDX_CODE = {
+  kaohsiung: 'Kaohsiung',
+  tainan:    'Tainan',
+  chiayi:    'Chiayi'
+};
+
+function showAvailBar(text) {
+  var el = document.getElementById('availBar');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('show');
+}
+
+function hideAvailBar() {
+  var el = document.getElementById('availBar');
+  if (el) el.classList.remove('show');
+}
+
+function formatCachedAt(isoString) {
+  if (!isoString) return '—';
+  try {
+    var d = new Date(isoString);
+    if (isNaN(d.getTime())) return '—';
+    // 轉換為台灣時區 UTC+8
+    var utcMs = d.getTime();
+    var twMs  = utcMs + 8 * 60 * 60 * 1000;
+    var twDate = new Date(twMs);
+    var hh = String(twDate.getUTCHours()).padStart(2, '0');
+    var mm = String(twDate.getUTCMinutes()).padStart(2, '0');
+    return '空位更新：' + hh + ':' + mm;
+  } catch (e) {
+    return '—';
+  }
+}
+
+function applyAvailabilityData(availData) {
+  D.forEach(function(p) {
+    var avail = availData[p.id];
+    if (avail) {
+      p.smallcarVacancy   = avail.smallCar;
+      p.largecarVacancy   = avail.largeCar;
+      p.motorcycleVacancy = avail.motorcycle;
+    }
+  });
+  render();
+}
+
+function fetchAvailability(cityCode) {
+  var url = PROXY_BASE_URL + '/api/parking-availability?city=' + cityCode;
+  showAvailBar('🔄 查詢空位中…');
+  fetch(url)
+    .then(function(res) { return res.json(); })
+    .then(function(json) {
+      if (json.data) {
+        applyAvailabilityData(json.data);
+        showAvailBar('🟢 ' + formatCachedAt(json.cachedAt));
+      } else {
+        showAvailBar('⚠️ 空位資料暫時無法取得');
+      }
+    })
+    .catch(function() {
+      showAvailBar('⚠️ 空位資料暫時無法取得');
+    });
 }
 
 /* ── 事件綁定 ── */
@@ -1174,6 +1283,9 @@ window.addEventListener('DOMContentLoaded', function() {
 
   // GPS 偵測（會呼叫 render）
   initGeo();
+
+  // 非同步取得即時空位資料（不阻塞頁面渲染）
+  fetchAvailability(CITY_TO_TDX_CODE[currentCity]);
 });
 
 })();

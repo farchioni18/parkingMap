@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>ParkNow.TW — 停車場查詢（手機版）</title>
+<link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -225,59 +226,102 @@ body {
 .mobile-card {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
+  border-radius: 12px;
+  padding: 14px 14px 12px 16px;
+  margin-bottom: 10px;
+  border-left: 4px solid var(--border-color);
+  transition: border-left-color .2s;
 }
-.mc-header {
+.mobile-card.vac-ok  { border-left-color: var(--available-ok); }
+.mobile-card.vac-warn { border-left-color: #ef4444; }
+.mobile-card.vac-na  { border-left-color: var(--border-color); }
+
+/* ── 卡片頂部：名稱 + 空位 badge ── */
+.mc-top {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 10px;
   margin-bottom: 6px;
-  gap: 8px;
 }
 .mc-name {
-  font-size: .9rem;
-  font-weight: 600;
+  font-size: .95rem;
+  font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.3;
+  line-height: 1.35;
   flex: 1;
 }
+
+/* ── 空位大 badge ── */
+.mc-vacancy {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.mc-vacancy.vac-ok   { background: #d1fae5; color: #065f46; }
+.mc-vacancy.vac-warn { background: #fee2e2; color: #991b1b; }
+.mc-vacancy.vac-na   { background: var(--bg-surface); color: var(--text-muted); }
+[data-theme="dark"] .mc-vacancy.vac-ok   { background: rgba(16,185,129,.2); color: #6ee7b7; }
+[data-theme="dark"] .mc-vacancy.vac-warn { background: rgba(239,68,68,.2);  color: #fca5a5; }
+.mc-vacancy-num  { font-size: 1.1rem; }
+.mc-vacancy-label { font-size: .6rem; font-weight: 600; }
+
+/* ── 次要資訊列 ── */
+.mc-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .73rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.mc-sub-sep { color: var(--border-color); }
+.mc-dist { color: var(--available-ok); font-weight: 600; }
+
+/* ── 費率摘要列 ── */
+.mc-rate-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mc-rate-summary {
+  font-size: .78rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.mc-rate-item { display: flex; align-items: center; gap: 3px; }
+.mc-rate-item .val { font-weight: 700; color: var(--text-primary); }
+.mc-rate-monthly { color: var(--pin-monthly); font-weight: 700; }
+
+/* ── badges ── */
 .mc-badges { display: flex; gap: 4px; flex-shrink: 0; }
 .badge { font-size: .6rem; padding: 2px 7px; border-radius: 5px; font-weight: 600; }
 .badge-type { background: var(--accent-light); color: var(--accent-text); }
 .badge-monthly { background: #fff7ed; color: #c2410c; }
 [data-theme="dark"] .badge-monthly { background: rgba(249,115,22,.15); color: #fb923c; }
-.mc-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  font-size: .75rem;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-}
-.mc-dist { color: var(--available-ok); font-weight: 600; }
-.mc-monthly { color: var(--pin-monthly); font-weight: 600; }
-.mc-rate {
-  font-size: .75rem;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  background: var(--bg-surface);
-  padding: 6px 8px;
-  border-radius: 6px;
-  margin-bottom: 8px;
-}
-.mc-rate .hl { color: var(--pin-monthly); font-weight: 600; }
-.mc-actions { display: flex; justify-content: flex-end; }
+
 .btn-nav {
-  font-size: .75rem;
+  font-size: .73rem;
   color: var(--accent-text);
   text-decoration: none;
-  padding: 5px 14px;
+  padding: 5px 12px;
   border: 1px solid var(--accent);
   border-radius: 6px;
   transition: all .15s;
   background: var(--bg-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .btn-nav:hover { background: var(--accent); color: #fff; }
 
@@ -322,12 +366,32 @@ body {
   white-space: nowrap;
 }
 #geoMsg.show { display: block; }
+
+/* ── Availability status bar ── */
+#availBar {
+  display: none;
+  position: fixed;
+  bottom: 16px;
+  right: 12px;
+  background: rgba(255,255,255,.95);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: .72rem;
+  color: var(--text-secondary);
+  z-index: 2001;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+#availBar.show { display: block; }
+[data-theme="dark"] #availBar { background: rgba(26,35,50,.97); border-color: var(--border-color); }
 </style>
 </head>
 <body>
 <!-- ── Navbar ── -->
 <nav id="navbar">
   <div class="nav-left">
+    <img src="logo.png" alt="logo" style="height:30px;width:auto;object-fit:contain;margin-right:6px;flex-shrink:0;">
     <div class="logo">ParkNow<span class="logo-tw">.TW</span></div>
   </div>
   <div class="nav-center">
@@ -398,6 +462,9 @@ body {
 
 <!-- ── Geo Message ── -->
 <div id="geoMsg"></div>
+
+<!-- ── Availability Status Bar ── -->
+<div id="availBar"></div>
 
 <!-- ── Scripts ── -->
 <script src="parking_data.js"></script>
@@ -522,26 +589,40 @@ function parseData(arr) {
   arr.forEach(function(p) {
     var cw = (p.chargeway || '').replace(/,/g, '');
 
+    // 將各種「每小時N元」格式統一換算成每半小時費率
+    function parseHalfHour(text) {
+      var m;
+      // 每半小時N元 / 半小時N元 / N元/0.5hr / N元/0.5H
+      m = text.match(/每半小時(\d+)元/) || text.match(/半小時(\d+)元/) ||
+          text.match(/(\d+)元\/0\.5\s*[hH][rR]?/) || text.match(/(\d+)元\/0\.5\s*[hH]/);
+      if (m) return parseInt(m[1], 10);
+      // N元/時 / N元/H / N元/hr / N元/1hr（每小時，換算成半小時）
+      m = text.match(/(\d+)元\/[時时]/) || text.match(/(\d+)元\/[Hh][Rr]?/) ||
+          text.match(/(\d+)元\/1\s*[hH][rR]?/) || text.match(/(\d+)\/[Hh]\b/) ||
+          text.match(/計時(\d+)元\/時/);
+      if (m) return Math.round(parseInt(m[1], 10) / 2);
+      // N小時N元 / 1小時N元（每小時，換算成半小時）
+      m = text.match(/[1一]小時(\d+)元/) || text.match(/小時(\d+)元/);
+      if (m) return Math.round(parseInt(m[1], 10) / 2);
+      return null;
+    }
+
     if (holiday) {
-      var mHoliday = cw.match(/假日[^。；]*每半小時(\d+)元/) ||
-                     cw.match(/假日[：:]\s*每半小時(\d+)元/) ||
-                     cw.match(/\(2\)[^。；]*每半小時(\d+)元/);
-      if (mHoliday) {
-        p._hh = parseInt(mHoliday[1], 10);
-      } else {
-        var mHH = cw.match(/每半小時(\d+)元/);
-        p._hh = mHH ? parseInt(mHH[1], 10) : null;
+      var holidayPart = cw.match(/假日[^平]*/) ? cw.match(/假日[^平]*/)[0] : null;
+      var mHoliday = holidayPart ? parseHalfHour(holidayPart) : null;
+      if (!mHoliday) {
+        var part2 = cw.match(/\(2\)[^(]*/);
+        mHoliday = part2 ? parseHalfHour(part2[0]) : null;
       }
+      p._hh = mHoliday !== null ? mHoliday : parseHalfHour(cw);
     } else {
-      var mWeekday = cw.match(/平日[^。；]*每半小時(\d+)元/) ||
-                     cw.match(/平日[：:]\s*每半小時(\d+)元/) ||
-                     cw.match(/\(1\)[^。；]*每半小時(\d+)元/);
-      if (mWeekday) {
-        p._hh = parseInt(mWeekday[1], 10);
-      } else {
-        var mHH2 = cw.match(/每半小時(\d+)元/);
-        p._hh = mHH2 ? parseInt(mHH2[1], 10) : null;
+      var weekdayPart = cw.match(/平日[^假]*/) ? cw.match(/平日[^假]*/)[0] : null;
+      var mWeekday = weekdayPart ? parseHalfHour(weekdayPart) : null;
+      if (!mWeekday) {
+        var part1 = cw.match(/\(1\)[^(]*/);
+        mWeekday = part1 ? parseHalfHour(part1[0]) : null;
       }
+      p._hh = mWeekday !== null ? mWeekday : parseHalfHour(cw);
     }
 
     var mMO = cw.match(/(?:每月|月租[：:]?)\s*([\d]+)\s*元/) ||
@@ -635,27 +716,56 @@ function renderMobile(fd) {
   for (var i = 0; i < shown; i++) {
     var p = fd[i];
     var vacNum = parseInt(p.smallcarVacancy, 10);
-    var vacText = vacNum > 0 ? vacNum + '位空位' : (vacNum === -2 ? '未提供' : (vacNum === -1 ? '不適用' : '已滿'));
+
+    // 空位狀態
+    var vacClass, vacNumStr, vacLabelStr;
+    if (vacNum > 0) {
+      vacClass = 'vac-ok';
+      vacNumStr = vacNum;
+      vacLabelStr = '位空位';
+    } else if (vacNum === 0) {
+      vacClass = 'vac-warn';
+      vacNumStr = '客滿';
+      vacLabelStr = '';
+    } else {
+      vacClass = 'vac-na';
+      vacNumStr = '—';
+      vacLabelStr = '剩餘車位未提供';
+    }
+
     var distStr = p._dist !== undefined ? fmtDist(p._dist) : '';
-    var rateText = p.chargeway ? hlM(esc(p.chargeway)) : '費率未提供';
-    html += '<div class="mobile-card" data-id="' + esc(p.id) + '">' +
-      '<div class="mc-header">' +
-        '<div class="mc-name">' + esc(p.name) + '</div>' +
-        '<div class="mc-badges">' +
-          '<span class="badge badge-type">' + esc(p.parkingLotType || '') + '</span>' +
-          (p._hm ? '<span class="badge badge-monthly">月租</span>' : '') +
+
+    // 費率摘要
+    var rateParts = [];
+    if (p._hh) rateParts.push('<span class="mc-rate-item">⏱ <span class="val">' + p._hh + '元</span>/半hr</span>');
+    if (p._mo) rateParts.push('<span class="mc-rate-item mc-rate-monthly">💰 月租 <span class="val">' + p._mo + '元</span></span>');
+    var rateSummary = rateParts.length ? rateParts.join('') : '<span style="color:var(--text-muted)">費率未提供</span>';
+
+    html += '<div class="mobile-card ' + vacClass + '">' +
+      // 頂部：名稱 + 空位 badge
+      '<div class="mc-top">' +
+        '<div>' +
+          '<div class="mc-name">' + esc(p.name) + '</div>' +
+          '<div class="mc-badges" style="margin-top:4px">' +
+            '<span class="badge badge-type">' + esc(p.parkingLotType || '') + '</span>' +
+            (p._hm ? '<span class="badge badge-monthly">月租</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="mc-vacancy ' + vacClass + '">' +
+          '<span class="mc-vacancy-num">' + vacNumStr + '</span>' +
+          (vacLabelStr ? '<span class="mc-vacancy-label">' + vacLabelStr + '</span>' : '') +
         '</div>' +
       '</div>' +
-      '<div class="mc-meta">' +
+      // 次要資訊
+      '<div class="mc-sub">' +
         '<span>📍 ' + esc(p.areaname) + '</span>' +
-        (distStr ? '<span class="mc-dist">' + distStr + '</span>' : '') +
-        '<span>🚗 ' + (esc(p.volumn) || '—') + '格 ' + vacText + '</span>' +
-        (p._hh ? '<span>⏱ ' + p._hh + '元/半hr</span>' : '') +
-        (p._mo ? '<span class="mc-monthly">💰 月租' + p._mo + '元</span>' : '') +
+        (distStr ? '<span class="mc-sub-sep">·</span><span class="mc-dist">' + distStr + '</span>' : '') +
+        (p.volumn ? '<span class="mc-sub-sep">·</span><span>共 ' + esc(p.volumn) + ' 格</span>' : '') +
       '</div>' +
-      '<div class="mc-rate">' + rateText + '</div>' +
-      '<div class="mc-actions">' +
-        '<a class="btn-nav" href="' + buildNavUrl(p) + '" target="_blank" rel="noopener">🧭 導航前往</a>' +
+      // 費率 + 導航
+      '<div class="mc-rate-row">' +
+        '<div class="mc-rate-summary">' + rateSummary + '</div>' +
+        '<a class="btn-nav" href="' + buildNavUrl(p) + '" target="_blank" rel="noopener">🧭 導航</a>' +
       '</div>' +
       '</div>';
   }
@@ -801,9 +911,11 @@ function switchCity(cityKey) {
   currentCity = cityKey;
   if (CITY_CACHE[cityKey]) {
     D = CITY_CACHE[cityKey];
+    parseData(D);
     resetFilters();
     rebuildDistrictSelect();
     render();
+    fetchAvailability(CITY_TO_TDX_CODE[cityKey]);
   } else {
     loadScript(cfg.file, function() {
       D = window[cfg.varName];
@@ -816,10 +928,73 @@ function switchCity(cityKey) {
       resetFilters();
       rebuildDistrictSelect();
       render();
+      fetchAvailability(CITY_TO_TDX_CODE[cityKey]);
     }, function() {
       showListError('資料載入失敗');
     });
   }
+}
+
+/* ── Availability Proxy 整合 ── */
+var PROXY_BASE_URL = 'https://parking-proxy.vercel.app'; // 部署後替換為實際 URL
+var CITY_TO_TDX_CODE = {
+  kaohsiung: 'Kaohsiung',
+  tainan:    'Tainan',
+  chiayi:    'Chiayi'
+};
+
+function showAvailBar(text) {
+  var el = document.getElementById('availBar');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.add('show');
+}
+
+function formatCachedAt(isoString) {
+  if (!isoString) return '—';
+  try {
+    var d = new Date(isoString);
+    if (isNaN(d.getTime())) return '—';
+    // 轉換為台灣時區 UTC+8
+    var utcMs = d.getTime();
+    var twMs  = utcMs + 8 * 60 * 60 * 1000;
+    var twDate = new Date(twMs);
+    var hh = String(twDate.getUTCHours()).padStart(2, '0');
+    var mm = String(twDate.getUTCMinutes()).padStart(2, '0');
+    return '空位更新：' + hh + ':' + mm;
+  } catch (e) {
+    return '—';
+  }
+}
+
+function applyAvailabilityData(availData) {
+  D.forEach(function(p) {
+    var avail = availData[p.id];
+    if (avail) {
+      p.smallcarVacancy   = avail.smallCar;
+      p.largecarVacancy   = avail.largeCar;
+      p.motorcycleVacancy = avail.motorcycle;
+    }
+  });
+  render();
+}
+
+function fetchAvailability(cityCode) {
+  var url = PROXY_BASE_URL + '/api/parking-availability?city=' + cityCode;
+  showAvailBar('🔄 查詢空位中…');
+  fetch(url)
+    .then(function(res) { return res.json(); })
+    .then(function(json) {
+      if (json.data) {
+        applyAvailabilityData(json.data);
+        showAvailBar('🟢 ' + formatCachedAt(json.cachedAt));
+      } else {
+        showAvailBar('⚠️ 空位資料暫時無法取得');
+      }
+    })
+    .catch(function() {
+      showAvailBar('⚠️ 空位資料暫時無法取得');
+    });
 }
 
 /* ── 事件綁定 ── */
@@ -890,6 +1065,9 @@ window.addEventListener('DOMContentLoaded', function() {
   // 載入國定假日資料（非同步）
   loadHolidayData();
   initGeo();
+
+  // 非同步取得即時空位資料（不阻塞頁面渲染）
+  fetchAvailability(CITY_TO_TDX_CODE[currentCity]);
 });
 
 })();

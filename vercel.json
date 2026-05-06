@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/parking-availability",
+      "destination": "/api/parking-availability"
+    }
+  ]
+}

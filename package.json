@@ -1,0 +1,22 @@
+{
+  "name": "parking-proxy",
+  "version": "1.0.0",
+  "description": "Vercel Serverless Function proxy for TDX Parking Availability API",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:ci": "jest --runInBand"
+  },
+  "devDependencies": {
+    "fast-check": "^3.22.0",
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/api/__tests__/**/*.test.js"
+    ]
+  }
+}
