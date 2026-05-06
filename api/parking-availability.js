@@ -165,7 +165,11 @@ module.exports = async function handler(req, res) {
   // 4. Cache miss — 呼叫 TDX API
   try {
     const accessToken = await getTdxToken(clientId, clientSecret);
-    const tdxArray    = await fetchTdxAvailability(city, accessToken);
+    const tdxRaw      = await fetchTdxAvailability(city, accessToken);
+    // TDX 回應可能是陣列，或包在物件的某個欄位裡
+    const tdxArray = Array.isArray(tdxRaw)
+      ? tdxRaw
+      : (tdxRaw.ParkingAvailabilities || tdxRaw.data || tdxRaw.Data || []);
     const data        = transformAvailability(tdxArray);
     const now         = Date.now();
 
