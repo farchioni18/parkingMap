@@ -167,13 +167,14 @@ module.exports = async function handler(req, res) {
     const accessToken = await getTdxToken(clientId, clientSecret);
     const tdxRaw      = await fetchTdxAvailability(city, accessToken);
 
-    // DEBUG: 印出第一筆原始資料看欄位名稱
-    const firstItem = Array.isArray(tdxRaw) ? tdxRaw[0] : (typeof tdxRaw === 'object' ? tdxRaw : null);
-
-    // TDX 回應可能是陣列，或包在物件的某個欄位裡
+    // TDX 回應包在物件的 ParkingAvailabilities 欄位裡
     const tdxArray = Array.isArray(tdxRaw)
       ? tdxRaw
       : (tdxRaw.ParkingAvailabilities || tdxRaw.data || tdxRaw.Data || []);
+
+    // DEBUG: 印出第一筆看 ID 欄位名稱
+    const firstItem = tdxArray[0] || null;
+
     const data        = transformAvailability(tdxArray);
     const now         = Date.now();
     cache[city].data     = data;
@@ -184,12 +185,9 @@ module.exports = async function handler(req, res) {
       cachedAt: new Date(now).toISOString(),
       city:     city,
       _debug: {
-        isArray: Array.isArray(tdxRaw),
-        topLevelKeys: typeof tdxRaw === 'object' && tdxRaw !== null && !Array.isArray(tdxRaw)
-          ? Object.keys(tdxRaw).slice(0, 10)
-          : null,
-        firstItemKeys: firstItem ? Object.keys(firstItem).slice(0, 10) : null,
-        arrayLength: tdxArray.length
+        arrayLength: tdxArray.length,
+        firstItemKeys: firstItem ? Object.keys(firstItem) : null,
+        firstItem: firstItem
       }
     });
   } catch (err) {
